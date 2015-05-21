@@ -34,6 +34,7 @@ int main(){
 	double *U;
 	double h = 1 / N;
 	U = new double[N*N];
+
 	for (int j = 0; j < N; j++){
 		for (int i = 0; i < N; i++)
 			U[i + N*j] = exp(-S(i, j) / 2 * delta);
