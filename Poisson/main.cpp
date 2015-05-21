@@ -22,7 +22,7 @@ void Print(double *mass){
 void PrintGNU(double *mass){
 	ofstream fout;
 	fout.open("outputGNU.txt");
-	//fout.precision(3);
+	fout.precision(3);
 	for (int j = 0; j < N; j++){
 		for (int i = 0; i < N; i++)
 			fout << i << ' ' << j << ' ' << mass[i + j*N] << endl;
