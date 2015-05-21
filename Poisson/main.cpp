@@ -25,7 +25,7 @@ void PrintGNU(double *mass){
 	//fout.precision(3);
 	for (int j = 0; j < N; j++){
 		for (int i = 0; i < N; i++)
-			fout << delta*i << ' ' << delta*j << ' ' << mass[i + j*N] << endl;
+			fout << i << ' ' << j << ' ' << mass[i + j*N] << endl;
 		fout << endl;
 	}
 	fout.close();
