@@ -6,7 +6,7 @@
 using namespace std;
 
 double S(int x, int y){
-	return pow((x - 1/2), 2) + pow((y - 1/2), 2);
+	return (pow((x - 1/2), 2) + pow((y - 1/2), 2));
 }
 void Print(double *mass){
 	ofstream fout;
@@ -37,7 +37,7 @@ int main(){
 
 	for (int j = 0; j < N; j++){
 		for (int i = 0; i < N; i++)
-			U[i + N*j] = exp(-S(i, j) / 2 * delta);
+			U[i + N*j] = exp(-S(i, j) / (2 * pow(delta, 2)));
 	}
 	//Print(U);
 	PrintGNU(U);
