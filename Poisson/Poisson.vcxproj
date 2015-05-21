@@ -83,6 +83,15 @@
   <ItemGroup>
     <Text Include="output.txt" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\fftw-3.3.4-dll32\fftw3.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\fftw-3.3.4-dll32\libfftw3-3.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="..\fftw-3.3.4-dll32\libfftw3-3.lib" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
