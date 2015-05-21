@@ -1,7 +1,6 @@
 #include <iostream>
 #include <cmath>
 #include <fstream>
-#include 
 #define N 10
 #define delta 0.1
 using namespace std;
@@ -23,7 +22,7 @@ void Print(double *mass){
 void PrintGNU(double *mass){
 	ofstream fout;
 	fout.open("outputGNU.txt");
-	fout.precision(3);
+	//fout.precision(3);
 	for (int j = 0; j < N; j++){
 		for (int i = 0; i < N; i++)
 			fout << delta*i << ' ' << delta*j << ' ' << mass[i + j*N] << endl;
@@ -33,6 +32,7 @@ void PrintGNU(double *mass){
 }
 int main(){
 	double *U;
+	double h = 1 / N;
 	U = new double[N*N];
 	for (int j = 0; j < N; j++){
 		for (int i = 0; i < N; i++)
