@@ -36,19 +36,25 @@ void printGNU(double *mass, double dx, char* filename){
 	}
 	fout.close();
 }
-
+double sinmagic(double i, double j){
+	return (sin(PI*i / N)*sin(PI*i / N) + sin(PI*j / N)*sin(PI*j / N));
+}
 // KERNEL //
-__global__ void matMult(cufftDoubleReal *Ug, cufftDoubleComplex *complex, int n){
+__global__ void matMult(cufftDoubleReal *Ug, cufftDoubleComplex *complex, int n, int dx){
 	int   bx = blockIdx.x;		// block index
 	int   by = blockIdx.y;
 	int   tx = threadIdx.x;		// thread index
 	int   ty = threadIdx.y;		
 
 	int   idx = BLOCK_SIZE * bx + tx;
-	int	  idy = BLOCK_SIZE * by + n * ty;
+	int	  idy = BLOCK_SIZE * by + ty;
 
-
-	
+	double *out_double;
+		out_double = (double*)(&(complex[by*idx + ty*idy*n]));
+		out_double[0] = (((-1.0 / (4.0*n*n))*out_double[0]) /
+			(sin(PI*idx / n)*sin(PI*idx / n) + sin(PI*idy / n)*sin(PI*idy / n)));
+		out_double[1] = (((-1.0 / (4.0*n*n))*out_double[1]) /
+			(sin(PI*idx / n)*sin(PI*idx / n) + sin(PI*idy / n)*sin(PI*idy / n)));	
 }
 
 
@@ -61,19 +67,17 @@ int main(int argc, char *  argv[]){
 	// allocate host memory
 	double *U = new double[N*N];
 	initU(U, dx);
-
+	printGNU(U, dx, (char*)"first");
 	// allocate device memory
 	cufftDoubleReal *Ug;
 	cufftDoubleComplex  *complex;
 	cufftHandle ahead, backward;
 
-	//cudaMalloc((void**)&ahead, sizeof(cufftHandle));
-	//cudaMalloc((void**)&backward, sizeof(cufftHandle));
 	cudaMalloc((void**)&complex, numBytesC);
 	cudaMalloc((void**)&Ug, numBytesD);
 
 	cufftPlan2d(&ahead, N, N, CUFFT_D2Z); 
-	cufftPlan2d(&backward, N, N, CUFFT_Z2D);
+	cufftPlan2d(&backward, 1, N, CUFFT_Z2D);
 
 
 
@@ -93,11 +97,12 @@ int main(int argc, char *  argv[]){
 	cudaMemcpy(Ug, U, numBytesD, cudaMemcpyHostToDevice);
 
 	cufftExecD2Z(ahead, Ug, complex);
-	matMult <<<blocks, threads >>> (Ug, complex, N);
+	matMult <<<blocks, threads >>> (Ug, complex, N, dx);
 	cufftExecZ2D(backward, complex, Ug);
 	
 
 	cudaMemcpy(U, Ug, numBytesD, cudaMemcpyDeviceToHost);
+	printGNU(U, dx, (char*)"second");
 	cudaEventRecord(stop, 0);
 
 	cudaEventSynchronize(stop);
