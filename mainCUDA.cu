@@ -50,7 +50,7 @@ __global__ void matMult(cufftDoubleReal *Ug, cufftDoubleComplex *complex, int n,
 	int	  idy = BLOCK_SIZE * by + ty;
 
 	double *out_double;
-		out_double = (double*)(&(complex[by*idx + ty*idy*n]));
+		out_double = (double*)(&(complex[tx*idx + ty*idy*n]));
 		out_double[0] = (((-1.0 / (4.0*n*n))*out_double[0]) /
 			(sin(PI*idx / n)*sin(PI*idx / n) + sin(PI*idy / n)*sin(PI*idy / n)));
 		out_double[1] = (((-1.0 / (4.0*n*n))*out_double[1]) /
