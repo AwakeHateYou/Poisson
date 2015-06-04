@@ -1,12 +1,12 @@
 //
-// Perform "naive" square matrix multiplication
+// Poisson 
 //
 #include <stdio.h>
 #include <iostream>
 #include <cmath>
 #include <fstream>
-#include <fftw3.h>
 #include <string.h>
+#include <cufft.h>
 
 
 #define PI 3.141592
@@ -16,6 +16,9 @@ using namespace std;
 #define BLOCK_SIZE 	16			// submatrix size
 #define	N			128		// matrix size is N*N
 
+double S(double  x, double y){
+	return ((x - 1.0 / 2.0)*(x - 1.0 / 2.0) + (y - 1.0 / 2.0)*(y - 1.0 / 2.0));
+}
 void initU(double *mass, double dx){
 	for (int j = 0; j < N; j++)
 	for (int i = 0; i < N; i++)
@@ -35,24 +38,17 @@ void printGNU(double *mass, double dx, char* filename){
 }
 
 // KERNEL //
-__global__ void matMult(cufftDoubleReal *U, int n){
+__global__ void matMult(cufftDoubleReal *Ug, cufftDoubleComplex *complex, int n){
 	int   bx = blockIdx.x;		// block index
 	int   by = blockIdx.y;
 	int   tx = threadIdx.x;		// thread index
-	int   ty = threadIdx.y;
-	float sum = 0.0f;			// computed subelement
-	int	  ia = n * BLOCK_SIZE * by + n * ty;	// a [i][0]
-	int   ib = BLOCK_SIZE * bx + tx;
+	int   ty = threadIdx.y;		
 
-	// Multiply the two matrices together;
-	for (int k = 0; k < n; k++)
-		sum += a[ia + k] * b[ib + k*n];
+	int   idx = BLOCK_SIZE * bx + tx;
+	int	  idy = BLOCK_SIZE * by + n * ty;
 
-	// Write the block sub-matrix to global memory;
-	// each thread writes one element
-	int ic = n * BLOCK_SIZE * by + BLOCK_SIZE * bx;
 
-	c[ic + n * ty + tx] = sum;
+	
 }
 
 
@@ -68,10 +64,17 @@ int main(int argc, char *  argv[]){
 
 	// allocate device memory
 	cufftDoubleReal *Ug;
-	cufftDoubleComplex  *out, *ncomplex;
-	cudaMalloc((void**)&out, numBytesC);
-	cudaMalloc((void**)&ncomplex, numBytesC);
+	cufftDoubleComplex  *complex;
+	cufftHandle ahead, backward;
+
+	//cudaMalloc((void**)&ahead, sizeof(cufftHandle));
+	//cudaMalloc((void**)&backward, sizeof(cufftHandle));
+	cudaMalloc((void**)&complex, numBytesC);
 	cudaMalloc((void**)&Ug, numBytesD);
+
+	cufftPlan2d(&ahead, N, N, CUFFT_D2Z); 
+	cufftPlan2d(&backward, N, N, CUFFT_Z2D);
+
 
 
 	// set kernel launch configuration
@@ -89,9 +92,12 @@ int main(int argc, char *  argv[]){
 	cudaEventRecord(start, 0);
 	cudaMemcpy(Ug, U, numBytesD, cudaMemcpyHostToDevice);
 
-	matMult << <blocks, threads >> > (Ug, N);
+	cufftExecD2Z(ahead, Ug, complex);
+	matMult <<<blocks, threads >>> (Ug, complex, N);
+	cufftExecZ2D(backward, complex, Ug);
+	
 
-	cudaMemcpy(c, cdev, numBytes, cudaMemcpyDeviceToHost);
+	cudaMemcpy(U, Ug, numBytesD, cudaMemcpyDeviceToHost);
 	cudaEventRecord(stop, 0);
 
 	cudaEventSynchronize(stop);
@@ -103,11 +109,12 @@ int main(int argc, char *  argv[]){
 	// release resources
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
-	cudaFree(out);
 	cudaFree(Ug);
-	cudaFree(ncomplex);
+	cudaFree(complex);
+	cufftDestroy(ahead);
+	cufftDestroy(backward);
 
-	delete []U;
+	delete[]U;
 
 
 	return 0;
