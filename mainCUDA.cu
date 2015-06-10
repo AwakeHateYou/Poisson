@@ -40,7 +40,7 @@ double sinmagic(double i, double j){
 	return (sin(PI*i / N)*sin(PI*i / N) + sin(PI*j / N)*sin(PI*j / N));
 }
 // KERNEL //
-__global__ void matMult(cufftDoubleReal *Ug, cufftDoubleComplex *complex, int n, int dx){
+__global__ void matMult(cufftDoubleComplex *complex, int n, int dx){
 	int   bx = blockIdx.x;		// block index
 	int   by = blockIdx.y;
 	int   tx = threadIdx.x;		// thread index
@@ -50,11 +50,20 @@ __global__ void matMult(cufftDoubleReal *Ug, cufftDoubleComplex *complex, int n,
 	int	  idy = BLOCK_SIZE * by + ty;
 
 	double *out_double;
-		out_double = (double*)(&(complex[tx*idx + ty*idy*n]));
-		out_double[0] = (((-1.0 / (4.0*n*n))*out_double[0]) /
-			(sin(PI*idx / n)*sin(PI*idx / n) + sin(PI*idy / n)*sin(PI*idy / n)));
-		out_double[1] = (((-1.0 / (4.0*n*n))*out_double[1]) /
-			(sin(PI*idx / n)*sin(PI*idx / n) + sin(PI*idy / n)*sin(PI*idy / n)));	
+	if (idx < (n / 2 + 1) && idy < n){
+		out_double = (double*)(&(complex[idx + idy*(n / 2 + 1)]));
+		if (idx == 0 && idy == 0)
+		{
+			out_double[0] = 1;
+			out_double[1] = 1;
+		}
+		else {
+			out_double[0] = (((-1.0 / (4.0*n*n))*out_double[0]) /
+				(sin(PI*idx / n)*sin(PI*idx / n) + sin(PI*idy / n)*sin(PI*idy / n))) / (n*n);
+			out_double[1] = (((-1.0 / (4.0*n*n))*out_double[1]) /
+				(sin(PI*idx / n)*sin(PI*idx / n) + sin(PI*idy / n)*sin(PI*idy / n))) / (n*n);
+		}
+	}
 }
 
 
@@ -76,8 +85,8 @@ int main(int argc, char *  argv[]){
 	cudaMalloc((void**)&complex, numBytesC);
 	cudaMalloc((void**)&Ug, numBytesD);
 
-	cufftPlan2d(&ahead, N, N, CUFFT_D2Z); 
-	cufftPlan2d(&backward, 1, N, CUFFT_Z2D);
+	cufftPlan2d(&ahead, N, N, CUFFT_D2Z);
+	cufftPlan2d(&backward, N, N, CUFFT_Z2D);
 
 
 
@@ -97,12 +106,11 @@ int main(int argc, char *  argv[]){
 	cudaMemcpy(Ug, U, numBytesD, cudaMemcpyHostToDevice);
 
 	cufftExecD2Z(ahead, Ug, complex);
-	matMult <<<blocks, threads >>> (Ug, complex, N, dx);
+	matMult <<<blocks, threads >>> (complex, N, dx);
 	cufftExecZ2D(backward, complex, Ug);
 	
 
 	cudaMemcpy(U, Ug, numBytesD, cudaMemcpyDeviceToHost);
-	printGNU(U, dx, (char*)"second");
 	cudaEventRecord(stop, 0);
 
 	cudaEventSynchronize(stop);
@@ -110,7 +118,13 @@ int main(int argc, char *  argv[]){
 
 	// print the cpu and gpu times
 	printf("time spent executing by the GPU: %.2f millseconds\n", gpuTime);
+	for (int i = 0; i < N*N; i++)
+		U[i] = U[i] / (N*N);
 
+	double shift = U[0];
+	for (int i = 0; i < N*N; i++)
+		U[i] = U[i] - shift;
+	printGNU(U, dx, (char*)"second");
 	// release resources
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
